@@ -1,27 +1,40 @@
 package cc.unilock.shaderfixer.mixin;
 
-import Reika.DragonAPI.IO.Shaders.ShaderProgram;
 import Reika.DragonAPI.IO.Shaders.ShaderRegistry;
+import org.lwjgl.opengl.ARBShaderObjects;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(value = ShaderRegistry.class, remap = false)
 public class ShaderRegistryMixin {
-    @Inject(method = "createShader(LReika/DragonAPI/Base/DragonAPIMod;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/String;LReika/DragonAPI/IO/Shaders/ShaderRegistry$ShaderDomain;)LReika/DragonAPI/IO/Shaders/ShaderProgram;", at = @At("HEAD"), cancellable = true)
-    private static void createShader(CallbackInfoReturnable<ShaderProgram> cir) {
-        cir.setReturnValue(null);
+    @Redirect(method = "completeShader", at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL20;glUseProgram(I)V"))
+    private static void completeShader$glUseProgram(int program) {
+        ARBShaderObjects.glUseProgramObjectARB(program);
     }
 
-    @Inject(method = "runShader(LReika/DragonAPI/IO/Shaders/ShaderProgram;)Z", at = @At(value = "HEAD"), cancellable = true)
-    private static void runShader(CallbackInfoReturnable<Boolean> cir) {
-        cir.setReturnValue(false);
+    @Redirect(method = "constructShader", at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL20;glCreateShader(I)I"))
+    private static int constructShader$glCreateShader(int type) {
+        return ARBShaderObjects.glCreateShaderObjectARB(type);
     }
 
-    @Inject(method = "completeShader()V", at = @At(value = "HEAD"), cancellable = true)
-    private static void completeShader(CallbackInfo ci) {
-        ci.cancel();
+    @Redirect(method = "constructShader", at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL20;glShaderSource(ILjava/lang/CharSequence;)V"))
+    private static void constructShader$glShaderSource(int shader, CharSequence string) {
+        ARBShaderObjects.glShaderSourceARB(shader, string);
+    }
+
+    @Redirect(method = "constructShader", at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL20;glCompileShader(I)V"))
+    private static void constructShader$glCompileShader(int shader) {
+        ARBShaderObjects.glCompileShaderARB(shader);
+    }
+
+    @Redirect(method = "constructShader", at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL20;glGetShaderi(II)I"))
+    private static int constructShader$glGetShaderi(int shader, int pname) {
+        return ARBShaderObjects.glGetObjectParameteriARB(shader, pname);
+    }
+
+    @Redirect(method = "parseError", at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL20;glGetShaderInfoLog(II)Ljava/lang/String;"))
+    private static String parseError$glGetShaderInfoLog(int shader, int maxLength) {
+        return ARBShaderObjects.glGetInfoLogARB(shader, maxLength);
     }
 }
